@@ -33,8 +33,16 @@
     "api",
     "ccxt"
   ],
-  "author": "",
+  "author": "gtg7784",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gtg7784/dr-manhattan-ts.git"
+  },
+  "bugs": {
+    "url": "https://github.com/gtg7784/dr-manhattan-ts/issues"
+  },
+  "homepage": "https://github.com/gtg7784/dr-manhattan-ts#readme",
   "engines": {
     "node": ">=20.0.0"
   },
