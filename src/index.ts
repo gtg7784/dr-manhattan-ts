@@ -48,6 +48,7 @@ export {
   PolymarketWebSocket,
   Opinion,
   Limitless,
+  LimitlessWebSocket,
   listExchanges,
   createExchange,
 } from './exchanges/index.js';

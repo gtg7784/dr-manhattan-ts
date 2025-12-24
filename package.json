@@ -1,5 +1,5 @@
 {
-  "name": "dr-manhattan",
+  "name": "@alango/dr-manhattan",
   "version": "0.1.0",
   "description": "CCXT-style unified API for prediction markets",
   "type": "module",

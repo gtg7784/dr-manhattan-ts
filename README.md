@@ -19,17 +19,17 @@ CCXT-style unified API for prediction markets in TypeScript.
 ## Installation
 
 ```bash
-npm install dr-manhattan
+npm install @alango/dr-manhattan
 # or
-pnpm add dr-manhattan
+pnpm add @alango/dr-manhattan
 # or
-yarn add dr-manhattan
+yarn add @alango/dr-manhattan
 ```
 
 ## Quick Start
 
 ```typescript
-import { createExchange, listExchanges, MarketUtils } from 'dr-manhattan';
+import { createExchange, listExchanges, MarketUtils } from '@alango/dr-manhattan';
 
 // List available exchanges
 console.log(listExchanges()); // ['polymarket', 'limitless', 'opinion']
@@ -53,7 +53,7 @@ for (const market of markets) {
 ### Polymarket
 
 ```typescript
-import { Polymarket } from 'dr-manhattan';
+import { Polymarket } from '@alango/dr-manhattan';
 
 const polymarket = new Polymarket({
   privateKey: process.env.PRIVATE_KEY,
@@ -79,7 +79,7 @@ console.log(`USDC: ${balance.USDC}`);
 ### Limitless
 
 ```typescript
-import { Limitless } from 'dr-manhattan';
+import { Limitless } from '@alango/dr-manhattan';
 
 const limitless = new Limitless({
   privateKey: process.env.PRIVATE_KEY,
@@ -92,7 +92,7 @@ const positions = await limitless.fetchPositions();
 ### Opinion
 
 ```typescript
-import { Opinion } from 'dr-manhattan';
+import { Opinion } from '@alango/dr-manhattan';
 
 const opinion = new Opinion({
   apiKey: process.env.OPINION_API_KEY,
@@ -157,7 +157,7 @@ const hourlyMarket = await polymarket.findCryptoHourlyMarket('BTC', 'higher');
 #### Polymarket WebSocket
 
 ```typescript
-import { PolymarketWebSocket, OrderbookUtils } from 'dr-manhattan';
+import { PolymarketWebSocket, OrderbookUtils } from '@alango/dr-manhattan';
 
 const ws = new PolymarketWebSocket();
 
@@ -183,8 +183,7 @@ await ws.disconnect();
 #### Limitless WebSocket
 
 ```typescript
-import { Limitless } from 'dr-manhattan';
-import { LimitlessWebSocket } from 'dr-manhattan/exchanges/limitless';
+import { LimitlessWebSocket } from '@alango/dr-manhattan';
 
 const ws = new LimitlessWebSocket();
 
@@ -205,7 +204,7 @@ ws.subscribeToMarket(marketAddress);
 ### Market Utilities
 
 ```typescript
-import { MarketUtils } from 'dr-manhattan';
+import { MarketUtils } from '@alango/dr-manhattan';
 
 MarketUtils.isBinary(market);      // Has exactly 2 outcomes
 MarketUtils.isOpen(market);        // Not closed, not resolved
@@ -216,7 +215,7 @@ MarketUtils.getTokenIds(market);   // Extract token IDs
 ### Orderbook Utilities
 
 ```typescript
-import { OrderbookUtils } from 'dr-manhattan';
+import { OrderbookUtils } from '@alango/dr-manhattan';
 
 OrderbookUtils.bestBid(orderbook);     // Highest bid price
 OrderbookUtils.bestAsk(orderbook);     // Lowest ask price
@@ -228,7 +227,7 @@ OrderbookUtils.totalVolume(orderbook, 'bids'); // Sum of bid sizes
 ### Position Utilities
 
 ```typescript
-import { PositionUtils, calculateDelta } from 'dr-manhattan';
+import { PositionUtils, calculateDelta } from '@alango/dr-manhattan';
 
 PositionUtils.totalValue(positions);
 PositionUtils.totalPnl(positions);
@@ -242,7 +241,7 @@ const delta = calculateDelta(positions, market);
 ### Price Utilities
 
 ```typescript
-import { roundToTickSize, clampPrice, formatPrice, formatUsd } from 'dr-manhattan';
+import { roundToTickSize, clampPrice, formatPrice, formatUsd } from '@alango/dr-manhattan';
 
 roundToTickSize(0.6543, 0.01);  // 0.65
 clampPrice(1.5);                 // 1.0
@@ -262,7 +261,7 @@ import {
   InsufficientFunds,
   InvalidOrder,
   MarketNotFound,
-} from 'dr-manhattan';
+} from '@alango/dr-manhattan';
 
 try {
   await exchange.createOrder(params);
@@ -292,15 +291,15 @@ import type {
   FetchMarketsParams,
   ExchangeConfig,
   ExchangeCapabilities,
-} from 'dr-manhattan';
+} from '@alango/dr-manhattan';
 
-import { OrderSide, OrderStatus } from 'dr-manhattan';
+import { OrderSide, OrderStatus } from '@alango/dr-manhattan';
 ```
 
 ## Adding New Exchanges
 
 ```typescript
-import { Exchange, type ExchangeConfig } from 'dr-manhattan';
+import { Exchange, type ExchangeConfig } from '@alango/dr-manhattan';
 
 class NewExchange extends Exchange {
   readonly id = 'newexchange';

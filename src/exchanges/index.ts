@@ -5,7 +5,7 @@ import { Polymarket } from './polymarket/index.js';
 
 export { Polymarket, PolymarketWebSocket } from './polymarket/index.js';
 export { Opinion } from './opinion/index.js';
-export { Limitless } from './limitless/index.js';
+export { Limitless, LimitlessWebSocket } from './limitless/index.js';
 
 type ExchangeClass = new (config?: ExchangeConfig) => Exchange;
 
