@@ -49,6 +49,7 @@ export {
   Opinion,
   Limitless,
   LimitlessWebSocket,
+  Kalshi,
   listExchanges,
   createExchange,
 } from './exchanges/index.js';
