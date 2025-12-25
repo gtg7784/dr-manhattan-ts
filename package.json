@@ -1,6 +1,6 @@
 {
   "name": "@alango/dr-manhattan",
-  "packageManager": "pnpm@9.15.9",
+  "packageManager": "pnpm@10.26.2",
   "version": "0.1.0",
   "description": "CCXT-style unified API for prediction markets",
   "type": "module",
