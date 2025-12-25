@@ -15,6 +15,7 @@ CCXT-style unified API for prediction markets in TypeScript.
 | [Polymarket](https://polymarket.com) | ✅ | ✅ | Polygon |
 | [Limitless](https://limitless.exchange) | ✅ | ✅ | Base |
 | [Opinion](https://opinion.trade) | ✅ | ❌ | BNB |
+| [Kalshi](https://kalshi.com) | ✅ | ❌ | - |
 
 ## Installation
 
@@ -32,7 +33,7 @@ yarn add @alango/dr-manhattan
 import { createExchange, listExchanges, MarketUtils } from '@alango/dr-manhattan';
 
 // List available exchanges
-console.log(listExchanges()); // ['polymarket', 'limitless', 'opinion']
+console.log(listExchanges()); // ['polymarket', 'limitless', 'opinion', 'kalshi']
 
 // Create exchange instance (no auth required for public data)
 const polymarket = createExchange('polymarket');
@@ -98,6 +99,43 @@ const opinion = new Opinion({
   apiKey: process.env.OPINION_API_KEY,
   privateKey: process.env.PRIVATE_KEY,
   multiSigAddr: process.env.MULTI_SIG_ADDR,
+});
+```
+
+### Kalshi
+
+```typescript
+import { Kalshi } from '@alango/dr-manhattan';
+
+// With RSA private key file
+const kalshi = new Kalshi({
+  apiKeyId: process.env.KALSHI_API_KEY_ID,
+  privateKeyPath: '/path/to/kalshi_private_key.pem',
+});
+
+// Or with PEM content directly
+const kalshi = new Kalshi({
+  apiKeyId: process.env.KALSHI_API_KEY_ID,
+  privateKeyPem: process.env.KALSHI_PRIVATE_KEY_PEM,
+});
+
+// Demo environment
+const kalshiDemo = new Kalshi({
+  apiKeyId: process.env.KALSHI_API_KEY_ID,
+  privateKeyPath: '/path/to/private_key.pem',
+  demo: true,
+});
+
+// Fetch markets (no auth required)
+const markets = await kalshi.fetchMarkets({ limit: 10 });
+
+// Create order (auth required)
+const order = await kalshi.createOrder({
+  marketId: 'INXD-24DEC31-B5000',
+  outcome: 'Yes',
+  side: OrderSide.BUY,
+  price: 0.55,
+  size: 10,
 });
 ```
 
