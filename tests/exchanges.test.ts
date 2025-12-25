@@ -1,10 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import { Limitless, Opinion, Polymarket, createExchange, listExchanges } from '../src/index.js';
+import {
+  Kalshi,
+  Limitless,
+  Opinion,
+  Polymarket,
+  createExchange,
+  listExchanges,
+} from '../src/index.js';
 
 describe('listExchanges', () => {
   it('should return all available exchange ids', () => {
     // #given
-    const expectedExchanges = ['polymarket', 'opinion', 'limitless'];
+    const expectedExchanges = ['polymarket', 'opinion', 'limitless', 'kalshi'];
 
     // #when
     const result = listExchanges();
@@ -62,13 +69,25 @@ describe('createExchange', () => {
     expect(exchange.id).toBe('limitless');
   });
 
+  it('should create Kalshi instance', () => {
+    // #given
+    const exchangeId = 'kalshi';
+
+    // #when
+    const exchange = createExchange(exchangeId);
+
+    // #then
+    expect(exchange).toBeInstanceOf(Kalshi);
+    expect(exchange.id).toBe('kalshi');
+  });
+
   it('should throw for unknown exchange', () => {
     // #given
     const exchangeId = 'unknown';
 
     // #when / #then
     expect(() => createExchange(exchangeId)).toThrow(
-      "Exchange 'unknown' not found. Available: polymarket, opinion, limitless"
+      "Exchange 'unknown' not found. Available: polymarket, opinion, limitless, kalshi"
     );
   });
 });
@@ -156,6 +175,63 @@ describe('Exchange instances', () => {
       // #then
       expect(exchange.id).toBe('limitless');
       expect(exchange.verbose).toBe(true);
+    });
+  });
+
+  describe('Kalshi', () => {
+    it('should have correct id and name', () => {
+      // #given / #when
+      const exchange = new Kalshi();
+
+      // #then
+      expect(exchange.id).toBe('kalshi');
+      expect(exchange.name).toBe('Kalshi');
+    });
+
+    it('should have correct describe output', () => {
+      // #given
+      const exchange = new Kalshi();
+
+      // #when
+      const desc = exchange.describe();
+
+      // #then
+      expect(desc.id).toBe('kalshi');
+      expect(desc.name).toBe('Kalshi');
+      expect(desc.has.fetchMarkets).toBe(true);
+      expect(desc.has.fetchMarket).toBe(true);
+      expect(desc.has.createOrder).toBe(true);
+      expect(desc.has.cancelOrder).toBe(true);
+      expect(desc.has.fetchOrder).toBe(true);
+      expect(desc.has.fetchOpenOrders).toBe(true);
+      expect(desc.has.fetchPositions).toBe(true);
+      expect(desc.has.fetchBalance).toBe(true);
+      expect(desc.has.websocket).toBe(false);
+    });
+
+    it('should accept custom configuration', () => {
+      // #given
+      const customApiUrl = 'https://custom.kalshi.com';
+
+      // #when
+      const exchange = new Kalshi({
+        apiUrl: customApiUrl,
+        demo: true,
+        verbose: true,
+      });
+
+      // #then
+      expect(exchange.id).toBe('kalshi');
+      expect(exchange.verbose).toBe(true);
+    });
+
+    it('should use demo URL when demo is true', () => {
+      // #given / #when
+      const exchange = new Kalshi({ demo: true });
+
+      // #then
+      expect(exchange.id).toBe('kalshi');
+      expect(exchange.name).toBe('Kalshi');
     });
   });
 });
