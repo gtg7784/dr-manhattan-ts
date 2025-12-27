@@ -10,7 +10,7 @@ importers:
     dependencies:
       '@polymarket/clob-client':
         specifier: ^5.1.2
-        version: 5.1.2(typescript@5.9.3)
+        version: 5.1.3(typescript@5.9.3)
       '@polymarket/order-utils':
         specifier: ^3.0.1
         version: 3.0.1(typescript@5.9.3)
@@ -384,9 +384,9 @@ packages:
   '@polymarket/builder-signing-sdk@0.0.8':
     resolution: {integrity: sha512-rZLCFxEdYahl5FiJmhe22RDXysS1ibFJlWz4NT0s3itJRYq3XJzXXHXEZkAQplU+nIS1IlbbKjA4zDQaeCyYtg==}
 
-  '@polymarket/clob-client@5.1.2':
-    resolution: {integrity: sha512-8b/c5o/ZXY/xSscKxC26N0W9cjychNsZ7e91aIWDQCl2Jyye64Zt7gr82qLFfTzE24GLTj8ep0J3nKfrUYBPeA==}
-    engines: {node: '>=20.10', yarn: '>=1'}
+  '@polymarket/clob-client@5.1.3':
+    resolution: {integrity: sha512-dp9pQyCm6UVUfSvB5stPuN15jI+VVNzG4/E1tdvkyFrOdo9s0bOEZO8yjTiH3sGQWzICUojXXRzfG8yct9HwLA==}
+    engines: {node: '>=20.10'}
 
   '@polymarket/order-utils@3.0.1':
     resolution: {integrity: sha512-XVcVladfGtC/VmboMkcszqYs82rvath/0XFWqzIFfq8O4atVOU8ykPOGJ2ZfodBPcXETzL+2u1rcepLMLKu9AQ==}
@@ -1612,7 +1612,7 @@ snapshots:
     transitivePeerDependencies:
       - debug
 
-  '@polymarket/clob-client@5.1.2(typescript@5.9.3)':
+  '@polymarket/clob-client@5.1.3(typescript@5.9.3)':
     dependencies:
       '@ethersproject/providers': 5.8.0
       '@ethersproject/units': 5.8.0
