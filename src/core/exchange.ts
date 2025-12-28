@@ -157,11 +157,7 @@ export abstract class Exchange {
   }
 
   async findTradeableMarket(
-    options: {
-      binary?: boolean;
-      limit?: number;
-      minLiquidity?: number;
-    } = {}
+    options: { binary?: boolean; limit?: number; minLiquidity?: number } = {}
   ): Promise<Market | null> {
     const { binary = true, limit = 100, minLiquidity = 0 } = options;
 

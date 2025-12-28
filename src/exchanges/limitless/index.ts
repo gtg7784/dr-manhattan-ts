@@ -922,11 +922,11 @@ export class Limitless extends Exchange {
 }
 
 export {
-  LimitlessWebSocket,
-  LimitlessUserWebSocket,
-  type LimitlessWsConfig,
   type LimitlessOrderbookUpdate,
-  type LimitlessPriceUpdate,
   type LimitlessPositionUpdate,
+  type LimitlessPriceUpdate,
   type LimitlessTrade,
+  LimitlessUserWebSocket,
+  LimitlessWebSocket,
+  type LimitlessWsConfig,
 } from './limitless-ws.js';

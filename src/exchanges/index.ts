@@ -4,10 +4,10 @@ import { Limitless } from './limitless/index.js';
 import { Opinion } from './opinion/index.js';
 import { Polymarket } from './polymarket/index.js';
 
-export { Polymarket, PolymarketWebSocket } from './polymarket/index.js';
-export { Opinion } from './opinion/index.js';
-export { Limitless, LimitlessWebSocket } from './limitless/index.js';
 export { Kalshi } from './kalshi/index.js';
+export { Limitless, LimitlessWebSocket } from './limitless/index.js';
+export { Opinion } from './opinion/index.js';
+export { Polymarket, PolymarketWebSocket } from './polymarket/index.js';
 
 type ExchangeClass = new (config?: ExchangeConfig) => Exchange;
 

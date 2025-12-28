@@ -1,6 +1,5 @@
 import { EventEmitter } from 'node:events';
-import type { Market, Order, Position } from '../types/index.js';
-import type { OrderSide } from '../types/index.js';
+import type { Market, Order, OrderSide, Position } from '../types/index.js';
 import type { Exchange } from './exchange.js';
 
 export const StrategyState = {

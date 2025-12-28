@@ -1,9 +1,9 @@
 import {
   type Market,
   MarketUtils,
-  OrderSide,
   type Orderbook,
   OrderbookUtils,
+  OrderSide,
   Polymarket,
   PolymarketWebSocket,
   Strategy,
