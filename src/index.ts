@@ -1,65 +1,63 @@
 export {
+  Exchange,
+  type ExchangeCapabilities,
+  type ExchangeConfig,
+  OrderBookWebSocket,
+  type OrderbookCallback,
+  type OrderbookUpdate,
+  Strategy,
+  type StrategyConfig,
+  StrategyState,
+  type WebSocketConfig,
+  WebSocketState,
+} from './core/index.js';
+
+export {
+  AuthenticationError,
+  DrManhattanError,
+  ExchangeError,
+  InsufficientFunds,
+  InvalidOrder,
+  MarketNotFound,
+  NetworkError,
+  RateLimitError,
+} from './errors/index.js';
+export {
+  createExchange,
+  Kalshi,
+  Limitless,
+  LimitlessWebSocket,
+  listExchanges,
+  Opinion,
+  Polymarket,
+  PolymarketWebSocket,
+} from './exchanges/index.js';
+export {
+  type CreateOrderParams,
+  calculateDelta,
+  type DeltaInfo,
+  type FetchMarketsParams,
+  type Market,
+  MarketUtils,
+  type Order,
+  type Orderbook,
+  OrderbookManager,
+  OrderbookUtils,
   OrderSide,
   OrderStatus,
   OrderUtils,
-  MarketUtils,
-  PositionUtils,
-  OrderbookUtils,
-  OrderbookManager,
-  calculateDelta,
-  type Order,
-  type CreateOrderParams,
-  type Market,
   type OutcomeToken,
-  type FetchMarketsParams,
   type Position,
-  type DeltaInfo,
-  type Orderbook,
+  PositionUtils,
   type PriceLevel,
 } from './types/index.js';
 
 export {
-  DrManhattanError,
-  ExchangeError,
-  NetworkError,
-  RateLimitError,
-  AuthenticationError,
-  InsufficientFunds,
-  InvalidOrder,
-  MarketNotFound,
-} from './errors/index.js';
-
-export {
-  Exchange,
-  OrderBookWebSocket,
-  WebSocketState,
-  Strategy,
-  StrategyState,
-  type ExchangeConfig,
-  type ExchangeCapabilities,
-  type WebSocketConfig,
-  type OrderbookUpdate,
-  type OrderbookCallback,
-  type StrategyConfig,
-} from './core/index.js';
-
-export {
-  Polymarket,
-  PolymarketWebSocket,
-  Opinion,
-  Limitless,
-  LimitlessWebSocket,
-  Kalshi,
-  listExchanges,
-  createExchange,
-} from './exchanges/index.js';
-
-export {
-  logger,
-  createLogger,
   Colors,
-  roundToTickSize,
   clampPrice,
+  createLogger,
   formatPrice,
   formatUsd,
+  logger,
+  roundToTickSize,
 } from './utils/index.js';

@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { type Socket, io } from 'socket.io-client';
+import { io, type Socket } from 'socket.io-client';
 import { type OrderbookCallback, WebSocketState } from '../../core/websocket.js';
 import { OrderbookManager } from '../../types/orderbook.js';
 

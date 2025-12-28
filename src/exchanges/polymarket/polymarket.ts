@@ -14,6 +14,7 @@ import {
   type FetchMarketsParams,
   type Market,
   MarketUtils,
+  normalizeTokenSymbol,
   type Order,
   OrderSide,
   OrderStatus,
@@ -22,7 +23,6 @@ import {
   type PricePoint,
   type PublicTrade,
   type Tag,
-  normalizeTokenSymbol,
 } from '../../types/index.js';
 
 const BASE_URL = 'https://gamma-api.polymarket.com';
@@ -773,7 +773,7 @@ export class Polymarket extends Exchange {
 
     const upDownPattern = /(?<token>Bitcoin|Ethereum|Solana|BTC|ETH|SOL)\s+Up or Down/i;
     const strikePattern =
-      /(?:(?<token1>BTC|ETH|SOL|BITCOIN|ETHEREUM|SOLANA)\s+.*?(?<direction>above|below|over|under|reach)\s+[\$]?(?<price1>[\d,]+(?:\.\d+)?))|(?:[\$]?(?<price2>[\d,]+(?:\.\d+)?)\s+.*?(?<token2>BTC|ETH|SOL|BITCOIN|ETHEREUM|SOLANA))/i;
+      /(?:(?<token1>BTC|ETH|SOL|BITCOIN|ETHEREUM|SOLANA)\s+.*?(?<direction>above|below|over|under|reach)\s+[$]?(?<price1>[\d,]+(?:\.\d+)?))|(?:[$]?(?<price2>[\d,]+(?:\.\d+)?)\s+.*?(?<token2>BTC|ETH|SOL|BITCOIN|ETHEREUM|SOLANA))/i;
 
     for (const market of markets) {
       if (!MarketUtils.isBinary(market) || !MarketUtils.isOpen(market)) continue;

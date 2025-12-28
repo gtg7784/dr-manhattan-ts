@@ -1,4 +1,4 @@
-import { MarketUtils, createExchange, listExchanges } from '../src/index.js';
+import { createExchange, listExchanges, MarketUtils } from '../src/index.js';
 
 async function main() {
   console.log('Available exchanges:', listExchanges().join(', '));

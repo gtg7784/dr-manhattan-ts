@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  calculateDelta,
   type Market,
   MarketUtils,
   type Order,
@@ -8,7 +9,6 @@ import {
   OrderUtils,
   type Position,
   PositionUtils,
-  calculateDelta,
 } from '../src/index.js';
 
 describe('OrderSide', () => {

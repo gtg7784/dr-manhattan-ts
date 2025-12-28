@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+  createExchange,
   Kalshi,
   Limitless,
+  listExchanges,
   Opinion,
   Polymarket,
-  createExchange,
-  listExchanges,
 } from '../src/index.js';
 
 describe('listExchanges', () => {

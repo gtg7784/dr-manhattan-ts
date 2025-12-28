@@ -13,9 +13,9 @@ import {
   type FetchMarketsParams,
   type Market,
   type Order,
+  type Orderbook,
   OrderSide,
   OrderStatus,
-  type Orderbook,
   type Position,
   type PriceLevel,
 } from '../../types/index.js';
