@@ -41,14 +41,22 @@ interface KalshiAuth {
 }
 
 function createAuth(privateKeyPem: string): KalshiAuth {
+  const privateKey = crypto.createPrivateKey(privateKeyPem);
+
   return {
     sign(timestampMs: number, method: string, path: string): string {
-      const message = `${timestampMs}${method.toUpperCase()}${path}`;
-      const sign = crypto.createSign('RSA-SHA256');
-      sign.update(message);
-      sign.end();
-      const signature = sign.sign(privateKeyPem, 'base64');
-      return signature;
+      // Strip query parameters before signing (per Kalshi docs)
+      const pathWithoutQuery = path.split('?')[0];
+      const message = `${timestampMs}${method.toUpperCase()}${pathWithoutQuery}`;
+
+      // Sign with RSA-PSS + SHA256 (salt length = digest length = 32 for SHA256)
+      const signature = crypto.sign('sha256', Buffer.from(message), {
+        key: privateKey,
+        padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+        saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST,
+      });
+
+      return signature.toString('base64');
     },
   };
 }
