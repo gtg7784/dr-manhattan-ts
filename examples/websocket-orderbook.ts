@@ -1,4 +1,4 @@
-import { OrderbookUtils, PolymarketWebSocket } from '../src/index.js';
+import { type Orderbook, OrderbookUtils, PolymarketWebSocket } from '../src/index.js';
 
 const TOKEN_IDS = [
   '21742633143463906290569050155826241533067272736897614950488156847949938836455',
@@ -6,34 +6,36 @@ const TOKEN_IDS = [
 ];
 
 async function main() {
-  const ws = new PolymarketWebSocket();
-
-  ws.on('open', () => {
-    console.log('WebSocket connected');
-    ws.subscribeToOrderbook(TOKEN_IDS);
-  });
-
-  ws.on('orderbook', (update) => {
-    const { tokenId, orderbook } = update;
-    const bid = OrderbookUtils.bestBid(orderbook);
-    const ask = OrderbookUtils.bestAsk(orderbook);
-    const spread = OrderbookUtils.spread(orderbook);
-    const mid = OrderbookUtils.midPrice(orderbook);
-
-    console.log(
-      `[${tokenId.slice(0, 8)}...] Bid: ${bid?.toFixed(3) ?? 'N/A'} | Ask: ${ask?.toFixed(3) ?? 'N/A'} | Spread: ${spread?.toFixed(4) ?? 'N/A'} | Mid: ${mid?.toFixed(3) ?? 'N/A'}`
-    );
-  });
+  const ws = new PolymarketWebSocket({ verbose: true });
 
   ws.on('error', (err) => {
     console.error('WebSocket error:', err.message);
   });
 
-  ws.on('close', () => {
-    console.log('WebSocket closed');
-  });
+  console.log('Connecting to Polymarket WebSocket...');
 
-  await ws.connect();
+  for (const tokenId of TOKEN_IDS) {
+    await ws.watchOrderbookWithAsset(tokenId, tokenId, (marketId, update) => {
+      const orderbook: Orderbook = {
+        bids: update.bids,
+        asks: update.asks,
+        timestamp: update.timestamp,
+        assetId: tokenId,
+        marketId,
+      };
+
+      const bid = OrderbookUtils.bestBid(orderbook);
+      const ask = OrderbookUtils.bestAsk(orderbook);
+      const spread = OrderbookUtils.spread(orderbook);
+      const mid = OrderbookUtils.midPrice(orderbook);
+
+      console.log(
+        `[${tokenId.slice(0, 8)}...] Bid: ${bid?.toFixed(3) ?? 'N/A'} | Ask: ${ask?.toFixed(3) ?? 'N/A'} | Spread: ${spread?.toFixed(4) ?? 'N/A'} | Mid: ${mid?.toFixed(3) ?? 'N/A'}`
+      );
+    });
+  }
+
+  console.log('Subscribed to orderbook updates. Press Ctrl+C to exit.\n');
 
   process.on('SIGINT', async () => {
     console.log('\nShutting down...');
