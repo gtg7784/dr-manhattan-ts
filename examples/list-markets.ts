@@ -25,26 +25,30 @@ async function main() {
     }
   }
 
-  const apiKey = process.env.PREDICTFUN_API_KEY;
-  const privateKey = process.env.PREDICTFUN_PRIVATE_KEY ?? process.env.PRIVATE_KEY;
+  const predictfunApiKey = process.env.PREDICTFUN_API_KEY;
+  const predictfunPrivateKey = process.env.PREDICTFUN_PRIVATE_KEY ?? process.env.PRIVATE_KEY;
 
-  const predictfun = createExchange('predictfun', {
-    apiKey,
-    privateKey,
-  });
-  console.log(`\nExchange: ${predictfun.name}`);
-  console.log('Capabilities:', predictfun.describe().has);
+  if (predictfunApiKey) {
+    const predictfun = createExchange('predictfun', {
+      apiKey: predictfunApiKey,
+      privateKey: predictfunPrivateKey,
+    });
+    console.log(`\nExchange: ${predictfun.name}`);
+    console.log('Capabilities:', predictfun.describe().has);
 
-  console.log('\nFetching markets...');
-  const predictfunMarkets = await predictfun.fetchMarkets({ limit: 5 });
-  for (const market of predictfunMarkets) {
-    console.log('\n---');
-    console.log(`ID: ${market.id}`);
-    console.log(`Question: ${market.question}`);
-    console.log(`Outcomes: ${market.outcomes.join(' vs ')}`);
-    console.log(`Volume: $${market.volume.toLocaleString()}`);
-    console.log(`Is Binary: ${MarketUtils.isBinary(market)}`);
-    console.log(`Is Open: ${MarketUtils.isOpen(market)}`);
+    console.log('\nFetching markets...');
+    const predictfunMarkets = await predictfun.fetchMarkets({ limit: 5 });
+    for (const market of predictfunMarkets) {
+      console.log('\n---');
+      console.log(`ID: ${market.id}`);
+      console.log(`Question: ${market.question}`);
+      console.log(`Outcomes: ${market.outcomes.join(' vs ')}`);
+      console.log(`Volume: $${market.volume.toLocaleString()}`);
+      console.log(`Is Binary: ${MarketUtils.isBinary(market)}`);
+      console.log(`Is Open: ${MarketUtils.isOpen(market)}`);
+    }
+  } else {
+    console.log('\n[Predict.fun] Skipped - PREDICTFUN_API_KEY required');
   }
 
   const kalshi = createExchange('kalshi');
@@ -88,20 +92,26 @@ async function main() {
     );
   }
 
-  const opinion = createExchange('opinion');
-  console.log(`\nExchange: ${opinion.name}`);
-  console.log('Capabilities:', opinion.describe().has);
+  const opinionApiKey = process.env.OPINION_API_KEY;
 
-  console.log('\nFetching markets...');
-  const opinionMarkets = await opinion.fetchMarkets({ limit: 5 });
-  for (const market of opinionMarkets) {
-    console.log('\n---');
-    console.log(`ID: ${market.id}`);
-    console.log(`Question: ${market.question}`);
-    console.log(`Outcomes: ${market.outcomes.join(' vs ')}`);
-    console.log(`Volume: $${market.volume.toLocaleString()}`);
-    console.log(`Is Binary: ${MarketUtils.isBinary(market)}`);
-    console.log(`Is Open: ${MarketUtils.isOpen(market)}`);
+  if (opinionApiKey) {
+    const opinion = createExchange('opinion', { apiKey: opinionApiKey });
+    console.log(`\nExchange: ${opinion.name}`);
+    console.log('Capabilities:', opinion.describe().has);
+
+    console.log('\nFetching markets...');
+    const opinionMarkets = await opinion.fetchMarkets({ limit: 5 });
+    for (const market of opinionMarkets) {
+      console.log('\n---');
+      console.log(`ID: ${market.id}`);
+      console.log(`Question: ${market.question}`);
+      console.log(`Outcomes: ${market.outcomes.join(' vs ')}`);
+      console.log(`Volume: $${market.volume.toLocaleString()}`);
+      console.log(`Is Binary: ${MarketUtils.isBinary(market)}`);
+      console.log(`Is Open: ${MarketUtils.isOpen(market)}`);
+    }
+  } else {
+    console.log('\n[Opinion] Skipped - OPINION_API_KEY required');
   }
 }
 

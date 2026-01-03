@@ -17,8 +17,10 @@ import {
   type Position,
 } from '../../types/index.js';
 
-const BASE_URL = 'https://proxy.opinion.trade:8443';
+const BASE_URL = 'https://openapi.opinion.trade';
 const CHAIN_ID = 56;
+
+const MARKET_TYPE_ALL = 2;
 
 interface OpinionConfig extends ExchangeConfig {
   apiKey?: string;
@@ -28,9 +30,10 @@ interface OpinionConfig extends ExchangeConfig {
 }
 
 interface ApiResponse<T = unknown> {
-  errno: number;
-  errmsg?: string;
+  code: number;
+  msg?: string;
   result?: {
+    total?: number;
     data?: T;
     list?: T[];
   };
@@ -142,8 +145,7 @@ export class Opinion extends Exchange {
     };
 
     if (this.apiKey) {
-      headers.Authorization = `Bearer ${this.apiKey}`;
-      headers['X-API-Key'] = this.apiKey;
+      headers.apikey = this.apiKey;
     }
 
     const fetchOptions: RequestInit = {
@@ -327,16 +329,16 @@ export class Opinion extends Exchange {
   async fetchMarkets(params?: FetchMarketsParams): Promise<Market[]> {
     return this.withRetry(async () => {
       const queryParams: Record<string, unknown> = {
-        topic_type: 'ALL',
-        status: params?.active === false ? 'ALL' : 'ACTIVATED',
+        marketType: MARKET_TYPE_ALL,
+        status: params?.active === false ? 'resolved' : 'activated',
         page: params?.offset ? Math.floor(params.offset / 20) + 1 : 1,
-        limit: Math.min(params?.limit ?? 20, 20),
+        limit: Math.min(params?.limit ?? 10, 20),
       };
 
-      const response = await this.request<RawMarket>('GET', '/api/v1/markets', queryParams);
+      const response = await this.request<RawMarket>('GET', '/openapi/market', queryParams);
 
-      if (response.errno !== 0) {
-        throw new ExchangeError(`Failed to fetch markets: ${response.errmsg}`);
+      if (response.code !== 0) {
+        throw new ExchangeError(`Failed to fetch markets: ${response.msg}`);
       }
 
       const marketsList = response.result?.list ?? [];
@@ -351,9 +353,9 @@ export class Opinion extends Exchange {
 
   async fetchMarket(marketId: string): Promise<Market> {
     return this.withRetry(async () => {
-      const response = await this.request<RawMarket>('GET', `/api/v1/markets/${marketId}`);
+      const response = await this.request<RawMarket>('GET', `/openapi/market/${marketId}`);
 
-      if (response.errno !== 0 || !response.result?.data) {
+      if (response.code !== 0 || !response.result?.data) {
         throw new MarketNotFound(`Market ${marketId} not found`);
       }
 
@@ -369,12 +371,12 @@ export class Opinion extends Exchange {
       const response = await this.request<{
         bids?: RawOrderbookLevel[];
         asks?: RawOrderbookLevel[];
-      }>('GET', '/api/v1/orderbook', { token_id: tokenId });
+      }>('GET', '/openapi/token/orderbook', { token_id: tokenId });
 
       const bids: Array<{ price: string; size: string }> = [];
       const asks: Array<{ price: string; size: string }> = [];
 
-      if (response.errno === 0 && response.result) {
+      if (response.code === 0 && response.result) {
         const result = response.result as unknown as {
           bids?: RawOrderbookLevel[];
           asks?: RawOrderbookLevel[];
@@ -432,8 +434,8 @@ export class Opinion extends Exchange {
         orderData
       );
 
-      if (response.errno !== 0) {
-        throw new InvalidOrder(`Order failed: ${response.errmsg}`);
+      if (response.code !== 0) {
+        throw new InvalidOrder(`Order failed: ${response.msg}`);
       }
 
       const orderId = response.result?.data?.order_id ?? '';
@@ -458,8 +460,8 @@ export class Opinion extends Exchange {
     return this.withRetry(async () => {
       const response = await this.request('POST', `/api/v1/orders/${orderId}/cancel`);
 
-      if (response.errno !== 0) {
-        throw new ExchangeError(`Failed to cancel order: ${response.errmsg}`);
+      if (response.code !== 0) {
+        throw new ExchangeError(`Failed to cancel order: ${response.msg}`);
       }
 
       return {
@@ -482,7 +484,7 @@ export class Opinion extends Exchange {
     return this.withRetry(async () => {
       const response = await this.request<RawOrder>('GET', `/api/v1/orders/${orderId}`);
 
-      if (response.errno !== 0 || !response.result?.data) {
+      if (response.code !== 0 || !response.result?.data) {
         throw new ExchangeError(`Order ${orderId} not found`);
       }
 
@@ -506,7 +508,7 @@ export class Opinion extends Exchange {
 
       const response = await this.request<RawOrder>('GET', '/api/v1/orders', params);
 
-      if (response.errno !== 0) {
+      if (response.code !== 0) {
         return [];
       }
 
@@ -530,7 +532,7 @@ export class Opinion extends Exchange {
 
       const response = await this.request<RawPosition>('GET', '/api/v1/positions', params);
 
-      if (response.errno !== 0) {
+      if (response.code !== 0) {
         return [];
       }
 
@@ -548,8 +550,8 @@ export class Opinion extends Exchange {
         '/api/v1/balances'
       );
 
-      if (response.errno !== 0) {
-        throw new ExchangeError(`Failed to fetch balance: ${response.errmsg}`);
+      if (response.code !== 0) {
+        throw new ExchangeError(`Failed to fetch balance: ${response.msg}`);
       }
 
       const result = response.result as unknown as {
