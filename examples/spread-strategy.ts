@@ -65,23 +65,24 @@ class SpreadStrategy extends Strategy {
   }
 
   private async setupWebSocket(): Promise<void> {
-    this.ws = new PolymarketWebSocket();
+    if (!this.tokenId) return;
 
-    this.ws.on('orderbook', ({ tokenId, orderbook }) => {
-      if (tokenId === this.tokenId) {
-        this.orderbook = orderbook;
-      }
-    });
+    this.ws = new PolymarketWebSocket();
 
     this.ws.on('error', (err) => {
       this.log(`WebSocket error: ${err.message}`);
     });
 
-    await this.ws.connect();
-
-    if (this.tokenId) {
-      this.ws.subscribeToOrderbook([this.tokenId]);
-    }
+    const tokenId = this.tokenId;
+    await this.ws.watchOrderbookWithAsset(tokenId, tokenId, (marketId, update) => {
+      this.orderbook = {
+        bids: update.bids,
+        asks: update.asks,
+        timestamp: update.timestamp,
+        assetId: tokenId,
+        marketId,
+      };
+    });
   }
 
   async onTick(): Promise<void> {
