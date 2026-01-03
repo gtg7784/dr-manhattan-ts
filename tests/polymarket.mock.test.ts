@@ -16,7 +16,7 @@ const createMockMarket = (overrides: Partial<Market> = {}): Market => ({
   volume: 1000000,
   liquidity: 50000,
   tickSize: 0.01,
-  closeTime: new Date('2025-12-31T00:00:00Z'),
+  closeTime: new Date('2030-12-31T00:00:00Z'),
   metadata: {
     active: true,
     closed: false,

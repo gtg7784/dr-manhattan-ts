@@ -1,5 +1,4 @@
 import {
-  type Market,
   MarketUtils,
   type Orderbook,
   OrderbookUtils,

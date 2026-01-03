@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { type Orderbook, OrderbookManager, OrderbookUtils, type PriceLevel } from '../src/index.js';
+import { type Orderbook, OrderbookManager, OrderbookUtils } from '../src/index.js';
 
 describe('OrderbookUtils', () => {
   describe('bestBid', () => {

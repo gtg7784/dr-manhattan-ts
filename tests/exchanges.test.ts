@@ -6,12 +6,13 @@ import {
   listExchanges,
   Opinion,
   Polymarket,
+  PredictFun,
 } from '../src/index.js';
 
 describe('listExchanges', () => {
   it('should return all available exchange ids', () => {
     // #given
-    const expectedExchanges = ['polymarket', 'opinion', 'limitless', 'kalshi'];
+    const expectedExchanges = ['polymarket', 'opinion', 'limitless', 'kalshi', 'predictfun'];
 
     // #when
     const result = listExchanges();
@@ -81,13 +82,25 @@ describe('createExchange', () => {
     expect(exchange.id).toBe('kalshi');
   });
 
+  it('should create PredictFun instance', () => {
+    // #given
+    const exchangeId = 'predictfun';
+
+    // #when
+    const exchange = createExchange(exchangeId);
+
+    // #then
+    expect(exchange).toBeInstanceOf(PredictFun);
+    expect(exchange.id).toBe('predictfun');
+  });
+
   it('should throw for unknown exchange', () => {
     // #given
     const exchangeId = 'unknown';
 
     // #when / #then
     expect(() => createExchange(exchangeId)).toThrow(
-      "Exchange 'unknown' not found. Available: polymarket, opinion, limitless, kalshi"
+      "Exchange 'unknown' not found. Available: polymarket, opinion, limitless, kalshi, predictfun"
     );
   });
 });
@@ -232,6 +245,63 @@ describe('Exchange instances', () => {
       // #then
       expect(exchange.id).toBe('kalshi');
       expect(exchange.name).toBe('Kalshi');
+    });
+  });
+
+  describe('PredictFun', () => {
+    it('should have correct id and name', () => {
+      // #given / #when
+      const exchange = new PredictFun();
+
+      // #then
+      expect(exchange.id).toBe('predictfun');
+      expect(exchange.name).toBe('Predict.fun');
+    });
+
+    it('should have correct describe output', () => {
+      // #given
+      const exchange = new PredictFun();
+
+      // #when
+      const desc = exchange.describe();
+
+      // #then
+      expect(desc.id).toBe('predictfun');
+      expect(desc.name).toBe('Predict.fun');
+      expect(desc.has.fetchMarkets).toBe(true);
+      expect(desc.has.fetchMarket).toBe(true);
+      expect(desc.has.createOrder).toBe(true);
+      expect(desc.has.cancelOrder).toBe(true);
+      expect(desc.has.fetchOrder).toBe(true);
+      expect(desc.has.fetchOpenOrders).toBe(true);
+      expect(desc.has.fetchPositions).toBe(true);
+      expect(desc.has.fetchBalance).toBe(true);
+      expect(desc.has.websocket).toBe(false);
+    });
+
+    it('should accept custom configuration', () => {
+      // #given
+      const customHost = 'https://custom.predict.fun';
+
+      // #when
+      const exchange = new PredictFun({
+        host: customHost,
+        testnet: true,
+        verbose: true,
+      });
+
+      // #then
+      expect(exchange.id).toBe('predictfun');
+      expect(exchange.verbose).toBe(true);
+    });
+
+    it('should use testnet URL when testnet is true', () => {
+      // #given / #when
+      const exchange = new PredictFun({ testnet: true });
+
+      // #then
+      expect(exchange.id).toBe('predictfun');
+      expect(exchange.name).toBe('Predict.fun');
     });
   });
 });
