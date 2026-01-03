@@ -31,6 +31,7 @@ export {
   Opinion,
   Polymarket,
   PolymarketWebSocket,
+  PredictFun,
 } from './exchanges/index.js';
 export {
   type CreateOrderParams,
