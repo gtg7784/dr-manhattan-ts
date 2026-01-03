@@ -81,7 +81,11 @@ async function main() {
     console.log(`Description: ${market.description}`);
     console.log(`Tick Size: ${market.tickSize}`);
     console.log(`Liquidity: $${market.liquidity.toLocaleString()}`);
-    console.log(`Prices: ${Object.entries(market.prices).map(([outcome, price]) => `${outcome}: ${(price * 100).toFixed(1)}%`).join(', ')}`);
+    console.log(
+      `Prices: ${Object.entries(market.prices)
+        .map(([outcome, price]) => `${outcome}: ${(price * 100).toFixed(1)}%`)
+        .join(', ')}`
+    );
   }
 
   const opinion = createExchange('opinion');
