@@ -40,6 +40,8 @@ export class Polymarket extends Exchange {
   private clobClient: ClobClient | null = null;
   private wallet: Wallet | null = null;
   private address: string | null = null;
+  private clobClientAuthenticated = false;
+  private authConfig: { chainId: number; signatureType: number; funder?: string } | null = null;
 
   constructor(config: PolymarketConfig = {}) {
     super(config);
@@ -57,7 +59,7 @@ export class Polymarket extends Exchange {
   private initializeClobClient(config: PolymarketConfig): void {
     try {
       const chainId = config.chainId ?? 137;
-      const signatureType = config.signatureType ?? 2;
+      const signatureType = config.signatureType ?? 0;
 
       if (!config.privateKey) {
         return;
@@ -72,10 +74,39 @@ export class Polymarket extends Exchange {
         config.funder
       );
 
+      this.authConfig = { chainId, signatureType, funder: config.funder };
       this.address = this.wallet.address;
     } catch (error) {
       throw new AuthenticationError(`Failed to initialize CLOB client: ${error}`);
     }
+  }
+
+  private async ensureAuthenticated(): Promise<ClobClient> {
+    if (!this.clobClient || !this.wallet || !this.authConfig) {
+      throw new AuthenticationError('CLOB client not initialized. Private key required.');
+    }
+
+    if (this.clobClientAuthenticated) {
+      return this.clobClient;
+    }
+
+    let creds: Awaited<ReturnType<typeof this.clobClient.deriveApiKey>>;
+    try {
+      creds = await this.clobClient.deriveApiKey();
+    } catch {
+      creds = await this.clobClient.createApiKey();
+    }
+    this.clobClient = new ClobClient(
+      CLOB_URL,
+      this.authConfig.chainId,
+      this.wallet,
+      creds,
+      this.authConfig.signatureType,
+      this.authConfig.funder
+    );
+    this.clobClientAuthenticated = true;
+
+    return this.clobClient;
   }
 
   async fetchMarkets(params?: FetchMarketsParams): Promise<Market[]> {
@@ -109,7 +140,7 @@ export class Polymarket extends Exchange {
 
   async fetchMarket(marketId: string): Promise<Market> {
     return this.withRetry(async () => {
-      const response = await fetch(`${BASE_URL}/markets/${marketId}`, {
+      const response = await fetch(`${CLOB_URL}/markets/${marketId}`, {
         signal: AbortSignal.timeout(this.timeout),
       });
 
@@ -122,7 +153,11 @@ export class Polymarket extends Exchange {
       }
 
       const data = (await response.json()) as Record<string, unknown>;
-      return this.parseGammaMarket(data);
+      const market = this.parseClobMarket(data);
+      if (!market) {
+        throw new MarketNotFound(`Market ${marketId} not found or invalid`);
+      }
+      return market;
     });
   }
 
@@ -156,17 +191,13 @@ export class Polymarket extends Exchange {
   }
 
   async createOrder(params: CreateOrderParams): Promise<Order> {
-    const client = this.clobClient;
-    if (!client) {
-      throw new AuthenticationError('CLOB client not initialized. Private key required.');
-    }
-
     const tokenId = params.tokenId ?? params.params?.token_id;
     if (!tokenId) {
       throw new InvalidOrder('token_id required in params');
     }
 
     return this.withRetry(async () => {
+      const client = await this.ensureAuthenticated();
       const signedOrder = await client.createOrder({
         tokenID: tokenId as string,
         price: params.price,
@@ -194,12 +225,8 @@ export class Polymarket extends Exchange {
   }
 
   async cancelOrder(orderId: string, marketId?: string): Promise<Order> {
-    const client = this.clobClient;
-    if (!client) {
-      throw new AuthenticationError('CLOB client not initialized. Private key required.');
-    }
-
     return this.withRetry(async () => {
+      const client = await this.ensureAuthenticated();
       await client.cancelOrder({ orderID: orderId });
 
       return {
@@ -218,24 +245,16 @@ export class Polymarket extends Exchange {
   }
 
   async fetchOrder(orderId: string, _marketId?: string): Promise<Order> {
-    const client = this.clobClient;
-    if (!client) {
-      throw new AuthenticationError('CLOB client not initialized. Private key required.');
-    }
-
     return this.withRetry(async () => {
+      const client = await this.ensureAuthenticated();
       const data = await client.getOrder(orderId);
       return this.parseOrder(data as unknown as Record<string, unknown>);
     });
   }
 
   async fetchOpenOrders(marketId?: string): Promise<Order[]> {
-    const client = this.clobClient;
-    if (!client) {
-      throw new AuthenticationError('CLOB client not initialized. Private key required.');
-    }
-
     return this.withRetry(async () => {
+      const client = await this.ensureAuthenticated();
       const response = await client.getOpenOrders();
 
       let orders = response as unknown as Array<Record<string, unknown>>;
@@ -249,20 +268,13 @@ export class Polymarket extends Exchange {
   }
 
   async fetchPositions(_marketId?: string): Promise<Position[]> {
-    if (!this.clobClient) {
-      throw new AuthenticationError('CLOB client not initialized. Private key required.');
-    }
-
+    await this.ensureAuthenticated();
     return [];
   }
 
   async fetchBalance(): Promise<Record<string, number>> {
-    const client = this.clobClient;
-    if (!client) {
-      throw new AuthenticationError('CLOB client not initialized. Private key required.');
-    }
-
     return this.withRetry(async () => {
+      const client = await this.ensureAuthenticated();
       const balanceData = (await client.getBalanceAllowance({
         asset_type: AssetType.COLLATERAL,
       })) as { balance?: string };
@@ -333,6 +345,45 @@ export class Polymarket extends Exchange {
       question: (data.question as string) ?? '',
       outcomes: outcomes.length ? outcomes : ['Yes', 'No'],
       closeTime: undefined,
+      volume: 0,
+      liquidity: 0,
+      prices,
+      tickSize,
+      description: (data.description as string) ?? '',
+      metadata: {
+        ...data,
+        clobTokenIds: tokenIds,
+        conditionId,
+        minimumTickSize: tickSize,
+      },
+    };
+  }
+
+  private parseClobMarket(data: Record<string, unknown>): Market | null {
+    const conditionId = data.condition_id as string | undefined;
+    if (!conditionId) return null;
+
+    const tokens = (data.tokens as Array<Record<string, unknown>>) ?? [];
+    const tokenIds: string[] = [];
+    const outcomes: string[] = [];
+    const prices: Record<string, number> = {};
+
+    for (const token of tokens) {
+      if (token.token_id) tokenIds.push(String(token.token_id));
+      if (token.outcome) outcomes.push(String(token.outcome));
+      if (token.outcome && token.price != null) {
+        prices[String(token.outcome)] = Number(token.price);
+      }
+    }
+
+    const tickSize = (data.minimum_tick_size as number) ?? 0.01;
+    const closeTime = this.parseDateTime(data.end_date_iso);
+
+    return {
+      id: conditionId,
+      question: (data.question as string) ?? '',
+      outcomes: outcomes.length ? outcomes : ['Yes', 'No'],
+      closeTime,
       volume: 0,
       liquidity: 0,
       prices,
@@ -447,7 +498,8 @@ export class Polymarket extends Exchange {
       rejected: OrderStatus.REJECTED,
     };
 
-    return statusMap[(status ?? '').toLowerCase()] ?? OrderStatus.OPEN;
+    const statusStr = typeof status === 'string' ? status.toLowerCase() : '';
+    return statusMap[statusStr] ?? OrderStatus.OPEN;
   }
 
   private isMarketOpen(market: Market): boolean {

@@ -126,7 +126,10 @@ export class Limitless extends Exchange {
     });
 
     if (!msgResponse.ok) {
-      throw new AuthenticationError('Failed to get signing message');
+      const errorText = await msgResponse.text().catch(() => 'Unknown error');
+      throw new AuthenticationError(
+        `Failed to get signing message: ${msgResponse.status} ${errorText}`
+      );
     }
 
     const message = await msgResponse.text();
@@ -149,7 +152,8 @@ export class Limitless extends Exchange {
     });
 
     if (!loginResponse.ok) {
-      throw new AuthenticationError('Login failed');
+      const errorText = await loginResponse.text().catch(() => 'Unknown error');
+      throw new AuthenticationError(`Login failed: ${loginResponse.status} ${errorText}`);
     }
 
     const setCookie = loginResponse.headers.get('set-cookie');
@@ -160,9 +164,16 @@ export class Limitless extends Exchange {
       }
     }
 
-    const loginData = (await loginResponse.json()) as { user?: { id?: string }; id?: string };
-    const userData = loginData.user ?? loginData;
-    this.ownerId = userData.id ?? null;
+    const loginData = (await loginResponse.json()) as {
+      account?: string;
+      user?: { id?: string | number };
+      id?: string | number;
+    };
+    const rawId = loginData.user?.id ?? loginData.id ?? loginData.account;
+    if (rawId !== undefined && rawId !== null) {
+      const numId = typeof rawId === 'number' ? rawId : Number(rawId);
+      this.ownerId = Number.isNaN(numId) ? String(rawId) : String(numId);
+    }
     this.authenticated = true;
   }
 
@@ -215,17 +226,18 @@ export class Limitless extends Exchange {
     const response = await fetch(url.toString(), fetchOptions);
 
     if (!response.ok) {
+      const errorText = await response.text().catch(() => 'Unknown error');
       if (response.status === 429) {
         throw new NetworkError('Rate limited');
       }
       if (response.status === 401 || response.status === 403) {
         this.authenticated = false;
-        throw new AuthenticationError('Authentication failed');
+        throw new AuthenticationError(`Authentication failed: ${errorText}`);
       }
       if (response.status === 404) {
         throw new ExchangeError(`Resource not found: ${endpoint}`);
       }
-      throw new NetworkError(`HTTP ${response.status}`);
+      throw new NetworkError(`HTTP ${response.status}: ${errorText}`);
     }
 
     return response.json() as Promise<T>;
@@ -583,7 +595,10 @@ export class Limitless extends Exchange {
     };
 
     if (this.ownerId) {
-      payload.ownerId = this.ownerId;
+      const numOwnerId = Number(this.ownerId);
+      if (!Number.isNaN(numOwnerId)) {
+        payload.ownerId = numOwnerId;
+      }
     }
 
     return this.withRetry(async () => {
@@ -663,16 +678,16 @@ export class Limitless extends Exchange {
     }
 
     const orderForSigning = {
-      salt,
+      salt: BigInt(salt),
       maker: this.address,
       signer: this.address,
       taker: '0x0000000000000000000000000000000000000000',
-      tokenId: Number.parseInt(tokenId, 10),
-      makerAmount,
-      takerAmount,
-      expiration: 0,
-      nonce: 0,
-      feeRateBps,
+      tokenId: BigInt(tokenId),
+      makerAmount: BigInt(makerAmount),
+      takerAmount: BigInt(takerAmount),
+      expiration: BigInt(0),
+      nonce: BigInt(0),
+      feeRateBps: BigInt(feeRateBps),
       side: sideInt,
       signatureType: 0,
     };
