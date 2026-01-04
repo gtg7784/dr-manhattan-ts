@@ -109,7 +109,7 @@ export class Polymarket extends Exchange {
 
   async fetchMarket(marketId: string): Promise<Market> {
     return this.withRetry(async () => {
-      const response = await fetch(`${BASE_URL}/markets/${marketId}`, {
+      const response = await fetch(`${CLOB_URL}/markets/${marketId}`, {
         signal: AbortSignal.timeout(this.timeout),
       });
 
@@ -122,7 +122,11 @@ export class Polymarket extends Exchange {
       }
 
       const data = (await response.json()) as Record<string, unknown>;
-      return this.parseGammaMarket(data);
+      const market = this.parseClobMarket(data);
+      if (!market) {
+        throw new MarketNotFound(`Market ${marketId} not found or invalid`);
+      }
+      return market;
     });
   }
 
@@ -333,6 +337,45 @@ export class Polymarket extends Exchange {
       question: (data.question as string) ?? '',
       outcomes: outcomes.length ? outcomes : ['Yes', 'No'],
       closeTime: undefined,
+      volume: 0,
+      liquidity: 0,
+      prices,
+      tickSize,
+      description: (data.description as string) ?? '',
+      metadata: {
+        ...data,
+        clobTokenIds: tokenIds,
+        conditionId,
+        minimumTickSize: tickSize,
+      },
+    };
+  }
+
+  private parseClobMarket(data: Record<string, unknown>): Market | null {
+    const conditionId = data.condition_id as string | undefined;
+    if (!conditionId) return null;
+
+    const tokens = (data.tokens as Array<Record<string, unknown>>) ?? [];
+    const tokenIds: string[] = [];
+    const outcomes: string[] = [];
+    const prices: Record<string, number> = {};
+
+    for (const token of tokens) {
+      if (token.token_id) tokenIds.push(String(token.token_id));
+      if (token.outcome) outcomes.push(String(token.outcome));
+      if (token.outcome && token.price != null) {
+        prices[String(token.outcome)] = Number(token.price);
+      }
+    }
+
+    const tickSize = (data.minimum_tick_size as number) ?? 0.01;
+    const closeTime = this.parseDateTime(data.end_date_iso);
+
+    return {
+      id: conditionId,
+      question: (data.question as string) ?? '',
+      outcomes: outcomes.length ? outcomes : ['Yes', 'No'],
+      closeTime,
       volume: 0,
       liquidity: 0,
       prices,
