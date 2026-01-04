@@ -67,6 +67,31 @@ export class PolymarketWebSocket extends OrderBookWebSocket {
     }, interval);
   }
 
+  protected override handleMessage(data: WebSocket.RawData): void {
+    this.lastMessageTime = Date.now();
+
+    const message = data.toString();
+    if (!message.startsWith('{')) return;
+
+    try {
+      const parsed = JSON.parse(message) as Record<string, unknown>;
+      const orderbook = this.parseOrderbookMessage(parsed);
+
+      if (orderbook) {
+        const callback = this.subscriptions.get(orderbook.marketId);
+        if (callback) {
+          Promise.resolve(callback(orderbook.marketId, orderbook)).catch((error) => {
+            if (this.config.verbose) {
+              console.error('Orderbook callback error:', error);
+            }
+          });
+        }
+      }
+    } catch {
+      return;
+    }
+  }
+
   protected parseOrderbookMessage(message: Record<string, unknown>): OrderbookUpdate | null {
     if (message.event_type !== 'book') return null;
 
