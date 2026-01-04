@@ -59,7 +59,7 @@ export class Polymarket extends Exchange {
   private initializeClobClient(config: PolymarketConfig): void {
     try {
       const chainId = config.chainId ?? 137;
-      const signatureType = config.signatureType ?? 2;
+      const signatureType = config.signatureType ?? 0;
 
       if (!config.privateKey) {
         return;
