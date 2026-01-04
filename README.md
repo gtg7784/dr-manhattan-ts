@@ -427,26 +427,35 @@ See the [examples/](examples/) directory:
 |---------|-------------|-----------|
 | **list-markets.ts** | Fetch and display markets from all exchanges | All |
 | **websocket-orderbook.ts** | Real-time orderbook streaming via WebSocket | Polymarket |
-| **spread-strategy.ts** | Market making strategy with inventory management | Polymarket |
+| **spread-strategy.ts** | Market making strategy with inventory management | All |
 
 ### Running Examples
 
 ```bash
-# List markets from all exchanges (Polymarket, PredictFun, Kalshi, Limitless, Opinion)
+# List markets from all exchanges
 npx tsx examples/list-markets.ts
-
-# With PredictFun authentication (optional)
-PREDICTFUN_API_KEY=... PRIVATE_KEY=0x... npx tsx examples/list-markets.ts
 
 # WebSocket orderbook streaming (Polymarket)
 npx tsx examples/websocket-orderbook.ts
 
-# Spread strategy (Polymarket)
-# Simulation mode (no trades)
-npx tsx examples/spread-strategy.ts
+# Spread strategy - works with any exchange
+# Polymarket (WebSocket)
+EXCHANGE=polymarket PRIVATE_KEY=0x... npx tsx examples/spread-strategy.ts
 
-# Live trading mode
-PRIVATE_KEY=0x... npx tsx examples/spread-strategy.ts
+# Limitless (WebSocket)
+EXCHANGE=limitless PRIVATE_KEY=0x... npx tsx examples/spread-strategy.ts
+
+# Kalshi (REST polling)
+EXCHANGE=kalshi KALSHI_API_KEY_ID=... KALSHI_PRIVATE_KEY_PATH=./key.pem npx tsx examples/spread-strategy.ts
+
+# Predict.fun (REST polling)
+EXCHANGE=predictfun PREDICTFUN_API_KEY=... PRIVATE_KEY=0x... npx tsx examples/spread-strategy.ts
+
+# Opinion (REST polling)
+EXCHANGE=opinion OPINION_API_KEY=... PRIVATE_KEY=0x... npx tsx examples/spread-strategy.ts
+
+# Simulation mode (no credentials = no real trades)
+EXCHANGE=polymarket npx tsx examples/spread-strategy.ts
 ```
 
 ## Requirements

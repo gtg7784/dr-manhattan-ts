@@ -1,3 +1,4 @@
+import WebSocket from 'ws';
 import {
   OrderBookWebSocket,
   type OrderbookUpdate,
@@ -5,6 +6,7 @@ import {
 } from '../../core/websocket.js';
 
 const WS_URL = 'wss://ws-subscriptions-clob.polymarket.com/ws/market';
+const POLYMARKET_PING_INTERVAL = 10000;
 
 interface PolymarketWsConfig extends WebSocketConfig {
   apiKey?: string;
@@ -12,43 +14,82 @@ interface PolymarketWsConfig extends WebSocketConfig {
 
 export class PolymarketWebSocket extends OrderBookWebSocket {
   readonly wsUrl = WS_URL;
-  private apiKey?: string;
   private assetSubscriptions = new Map<string, string>();
+  private initialSubscriptionSent = false;
 
   constructor(config: PolymarketWsConfig = {}) {
-    super(config);
-    this.apiKey = config.apiKey;
+    super({
+      ...config,
+      pingInterval: POLYMARKET_PING_INTERVAL,
+    });
   }
 
   protected async authenticate(): Promise<void> {
-    if (this.apiKey) {
+    this.initialSubscriptionSent = false;
+  }
+
+  protected async subscribeOrderbook(marketId: string): Promise<void> {
+    const assetId = this.assetSubscriptions.get(marketId);
+    if (!assetId) return;
+
+    if (!this.initialSubscriptionSent) {
       this.send({
-        type: 'auth',
-        apiKey: this.apiKey,
+        assets_ids: [assetId],
+        type: 'market',
+      });
+      this.initialSubscriptionSent = true;
+    } else {
+      this.send({
+        assets_ids: [assetId],
+        operation: 'subscribe',
       });
     }
   }
 
-  protected async subscribeOrderbook(marketId: string): Promise<void> {
-    const assetIds = this.assetSubscriptions.get(marketId);
-    if (!assetIds) return;
+  protected async unsubscribeOrderbook(marketId: string): Promise<void> {
+    const assetId = this.assetSubscriptions.get(marketId);
+    if (!assetId) return;
 
     this.send({
-      type: 'subscribe',
-      channel: 'book',
-      assets_id: assetIds,
+      assets_ids: [assetId],
+      operation: 'unsubscribe',
     });
   }
 
-  protected async unsubscribeOrderbook(marketId: string): Promise<void> {
-    const assetIds = this.assetSubscriptions.get(marketId);
-    if (!assetIds) return;
+  protected override startPingTimer(): void {
+    this.stopPingTimer();
+    const interval = this.config.pingInterval ?? POLYMARKET_PING_INTERVAL;
 
-    this.send({
-      type: 'unsubscribe',
-      channel: 'book',
-      assets_id: assetIds,
-    });
+    this.pingTimer = setInterval(() => {
+      if (this.ws?.readyState === WebSocket.OPEN) {
+        this.ws.send('PING');
+      }
+    }, interval);
+  }
+
+  protected override handleMessage(data: WebSocket.RawData): void {
+    this.lastMessageTime = Date.now();
+
+    const message = data.toString();
+    if (!message.startsWith('{')) return;
+
+    try {
+      const parsed = JSON.parse(message) as Record<string, unknown>;
+      const orderbook = this.parseOrderbookMessage(parsed);
+
+      if (orderbook) {
+        const callback = this.subscriptions.get(orderbook.marketId);
+        if (callback) {
+          Promise.resolve(callback(orderbook.marketId, orderbook)).catch((error) => {
+            if (this.config.verbose) {
+              console.error('Orderbook callback error:', error);
+            }
+          });
+        }
+      }
+    } catch {
+      return;
+    }
   }
 
   protected parseOrderbookMessage(message: Record<string, unknown>): OrderbookUpdate | null {
