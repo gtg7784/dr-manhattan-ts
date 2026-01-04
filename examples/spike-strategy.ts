@@ -66,15 +66,36 @@ class PolymarketOrderbookProvider implements OrderbookProvider {
   private tokenId: string;
   private marketId: string;
   private verbose: boolean;
+  private exchange: Polymarket;
 
-  constructor(tokenId: string, marketId: string, verbose = false) {
+  constructor(tokenId: string, marketId: string, exchange: Polymarket, verbose = false) {
     this.tokenId = tokenId;
     this.marketId = marketId;
+    this.exchange = exchange;
     this.verbose = verbose;
     this.ws = new PolymarketWebSocket({ verbose });
   }
 
   async start(): Promise<void> {
+    await this.fetchInitialOrderbook();
+    await this.subscribeToUpdates();
+  }
+
+  private async fetchInitialOrderbook(): Promise<void> {
+    try {
+      const restOrderbook = await this.exchange.getOrderbook(this.tokenId);
+      this.orderbook = OrderbookUtils.fromRestResponse(restOrderbook, this.tokenId);
+      if (this.verbose) {
+        console.log(
+          `[Polymarket REST] Initial orderbook: ${this.orderbook.bids.length} bids, ${this.orderbook.asks.length} asks`
+        );
+      }
+    } catch (err) {
+      if (this.verbose) console.error('[Polymarket REST] Failed to fetch initial orderbook:', err);
+    }
+  }
+
+  private async subscribeToUpdates(): Promise<void> {
     this.ws.on('error', (err) => {
       if (this.verbose) console.error('[Polymarket WS] Error:', err.message);
     });
@@ -87,6 +108,11 @@ class PolymarketOrderbookProvider implements OrderbookProvider {
         assetId: this.tokenId,
         marketId: this.marketId,
       };
+      if (this.verbose) {
+        console.log(
+          `[Polymarket WS] Update: ${update.bids.length} bids, ${update.asks.length} asks`
+        );
+      }
     });
 
     if (this.verbose) console.log('[Polymarket WS] Connected and subscribed');
@@ -239,6 +265,15 @@ class SpikeStrategy extends Strategy {
     this.emaAlpha = 2.0 / (this.spikeConfig.emaPeriod + 1);
   }
 
+  protected override async refreshState(): Promise<void> {
+    try {
+      await super.refreshState();
+    } catch {
+      this.positions = [];
+      this.openOrders = [];
+    }
+  }
+
   async start(): Promise<void> {
     this.market = await this.exchange.fetchMarket(this.marketId);
     if (!this.market) {
@@ -312,14 +347,15 @@ class SpikeStrategy extends Strategy {
 
     switch (this.exchange.id) {
       case 'polymarket': {
+        const polymarket = this.exchange as Polymarket;
         if (useWs) {
           this.orderbookProvider = new PolymarketOrderbookProvider(
             firstTokenId,
             this.marketId,
+            polymarket,
             verbose
           );
         } else {
-          const polymarket = this.exchange as Polymarket;
           this.orderbookProvider = new RestOrderbookProvider(
             'Polymarket',
             async () => {
@@ -847,13 +883,33 @@ async function main() {
 
     for (const minLiquidity of liquidityThresholds) {
       try {
-        market = await exchange.findTradeableMarket({
-          binary: true,
-          minLiquidity,
-        });
-        if (market && market.liquidity > 0) {
-          console.log(`Found market with minLiquidity >= $${minLiquidity}`);
-          break;
+        if (exchange.id === 'polymarket') {
+          const polymarket = exchange as Polymarket;
+          const markets = await polymarket.searchMarkets({
+            limit: 50,
+            minLiquidity,
+            binary: true,
+          });
+          const validMarket = markets.find(
+            (m) =>
+              MarketUtils.isBinary(m) &&
+              MarketUtils.isOpen(m) &&
+              MarketUtils.getTokenIds(m).length > 0
+          );
+          if (validMarket) {
+            market = validMarket;
+            console.log(`Found market with minLiquidity >= $${minLiquidity}`);
+            break;
+          }
+        } else {
+          market = await exchange.findTradeableMarket({
+            binary: true,
+            minLiquidity,
+          });
+          if (market && market.liquidity > 0) {
+            console.log(`Found market with minLiquidity >= $${minLiquidity}`);
+            break;
+          }
         }
       } catch {}
     }
@@ -866,21 +922,26 @@ async function main() {
     process.exit(1);
   }
 
-  if (market.liquidity === 0) {
+  if (market.liquidity === 0 && !config.marketId) {
     console.warn('\nWARNING: Selected market has $0 liquidity!');
     console.warn('This means no orderbook data will be available.');
     console.warn('Please use --market-id to specify an active market.\n');
     process.exit(1);
   }
 
+  const marketId =
+    exchange.id === 'polymarket' && market.metadata.conditionId
+      ? (market.metadata.conditionId as string)
+      : market.id;
+
   console.log(`\nSelected market: ${market.question}`);
-  console.log(`  ID: ${market.id}`);
+  console.log(`  ID: ${marketId}`);
   console.log(`  Volume: $${market.volume.toLocaleString()}`);
   console.log(`  Liquidity: $${market.liquidity.toLocaleString()}`);
   console.log(`  Outcomes: ${market.outcomes.join(', ')}`);
   console.log('');
 
-  const strategy = new SpikeStrategy(exchange, market.id, {
+  const strategy = new SpikeStrategy(exchange, marketId, {
     spikeThreshold: config.spikeThreshold,
     profitTarget: config.profitTarget,
     stopLoss: config.stopLoss,
