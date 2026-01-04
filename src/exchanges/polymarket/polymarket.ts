@@ -498,7 +498,8 @@ export class Polymarket extends Exchange {
       rejected: OrderStatus.REJECTED,
     };
 
-    return statusMap[(status ?? '').toLowerCase()] ?? OrderStatus.OPEN;
+    const statusStr = typeof status === 'string' ? status.toLowerCase() : '';
+    return statusMap[statusStr] ?? OrderStatus.OPEN;
   }
 
   private isMarketOpen(market: Market): boolean {
