@@ -16,6 +16,7 @@ CCXT-style unified API for prediction markets in TypeScript.
 | [Limitless](https://limitless.exchange) | ✅ | ✅ | Base |
 | [Opinion](https://opinion.trade) | ✅ | ❌ | BNB |
 | [Kalshi](https://kalshi.com) | ✅ | ❌ | - |
+| [Predict.fun](https://predict.fun) | ✅ | ❌ | BNB |
 
 ## Installation
 
@@ -33,7 +34,7 @@ yarn add @alango/dr-manhattan
 import { createExchange, listExchanges, MarketUtils } from '@alango/dr-manhattan';
 
 // List available exchanges
-console.log(listExchanges()); // ['polymarket', 'limitless', 'opinion', 'kalshi']
+console.log(listExchanges()); // ['polymarket', 'limitless', 'opinion', 'kalshi', 'predictfun']
 
 // Create exchange instance (no auth required for public data)
 const polymarket = createExchange('polymarket');
@@ -137,6 +138,47 @@ const order = await kalshi.createOrder({
   price: 0.55,
   size: 10,
 });
+```
+
+### Predict.fun
+
+```typescript
+import { PredictFun } from '@alango/dr-manhattan';
+
+// Mainnet
+const predictfun = new PredictFun({
+  apiKey: process.env.PREDICTFUN_API_KEY,
+  privateKey: process.env.PRIVATE_KEY,
+});
+
+// Testnet
+const predictfunTestnet = new PredictFun({
+  apiKey: process.env.PREDICTFUN_API_KEY,
+  privateKey: process.env.PRIVATE_KEY,
+  testnet: true,
+});
+
+// Fetch markets (no auth required for public data)
+const markets = await predictfun.fetchMarkets({ limit: 10 });
+
+// Get orderbook
+const orderbook = await predictfun.getOrderbook(marketId);
+
+// Create order (auth required)
+const order = await predictfun.createOrder({
+  marketId: '123',
+  outcome: 'Yes',
+  side: OrderSide.BUY,
+  price: 0.55,
+  size: 100,
+});
+
+// Fetch positions
+const positions = await predictfun.fetchPositions();
+
+// Fetch balance
+const balance = await predictfun.fetchBalance();
+console.log(`USDT: ${balance.USDT}`);
 ```
 
 ## API Reference
@@ -381,15 +423,30 @@ interface ExchangeConfig {
 
 See the [examples/](examples/) directory:
 
-- **list-markets.ts** - Fetch and display markets
-- **websocket-orderbook.ts** - Real-time orderbook streaming
-- **spread-strategy.ts** - Market making strategy with inventory management
+| Example | Description | Exchanges |
+|---------|-------------|-----------|
+| **list-markets.ts** | Fetch and display markets from all exchanges | All |
+| **websocket-orderbook.ts** | Real-time orderbook streaming via WebSocket | Polymarket |
+| **spread-strategy.ts** | Market making strategy with inventory management | Polymarket |
+
+### Running Examples
 
 ```bash
-# Run examples
+# List markets from all exchanges (Polymarket, PredictFun, Kalshi, Limitless, Opinion)
 npx tsx examples/list-markets.ts
+
+# With PredictFun authentication (optional)
+PREDICTFUN_API_KEY=... PRIVATE_KEY=0x... npx tsx examples/list-markets.ts
+
+# WebSocket orderbook streaming (Polymarket)
 npx tsx examples/websocket-orderbook.ts
-npx tsx examples/spread-strategy.ts  # Requires PRIVATE_KEY env var for real trades
+
+# Spread strategy (Polymarket)
+# Simulation mode (no trades)
+npx tsx examples/spread-strategy.ts
+
+# Live trading mode
+PRIVATE_KEY=0x... npx tsx examples/spread-strategy.ts
 ```
 
 ## Requirements
