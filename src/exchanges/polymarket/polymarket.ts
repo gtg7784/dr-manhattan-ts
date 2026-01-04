@@ -90,7 +90,12 @@ export class Polymarket extends Exchange {
       return this.clobClient;
     }
 
-    const creds = await this.clobClient.createOrDeriveApiKey();
+    let creds: Awaited<ReturnType<typeof this.clobClient.deriveApiKey>>;
+    try {
+      creds = await this.clobClient.deriveApiKey();
+    } catch {
+      creds = await this.clobClient.createApiKey();
+    }
     this.clobClient = new ClobClient(
       CLOB_URL,
       this.authConfig.chainId,
