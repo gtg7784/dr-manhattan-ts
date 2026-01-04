@@ -428,6 +428,7 @@ See the [examples/](examples/) directory:
 | **list-markets.ts** | Fetch and display markets from all exchanges | All |
 | **websocket-orderbook.ts** | Real-time orderbook streaming via WebSocket | Polymarket |
 | **spread-strategy.ts** | Market making strategy with inventory management | All |
+| **spike-strategy.ts** | Mean reversion strategy - buys price spikes | All |
 
 ### Running Examples
 
@@ -456,6 +457,12 @@ EXCHANGE=opinion OPINION_API_KEY=... PRIVATE_KEY=0x... npx tsx examples/spread-s
 
 # Simulation mode (no credentials = no real trades)
 EXCHANGE=polymarket npx tsx examples/spread-strategy.ts
+
+# Spike strategy - mean reversion (buys dips)
+EXCHANGE=polymarket PRIVATE_KEY=0x... npx tsx examples/spike-strategy.ts
+
+# Spike strategy with custom parameters
+npx tsx examples/spike-strategy.ts --spike-threshold 0.02 --profit-target 0.03 --stop-loss 0.02
 ```
 
 ## Requirements
