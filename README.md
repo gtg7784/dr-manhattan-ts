@@ -429,6 +429,7 @@ See the [examples/](examples/) directory:
 | **websocket-orderbook.ts** | Real-time orderbook streaming via WebSocket | Polymarket |
 | **spread-strategy.ts** | Market making strategy with inventory management | All |
 | **spike-strategy.ts** | Mean reversion strategy - buys price spikes | All |
+| **weather-bot-strategy.ts** | London temperature bucket mispricing strategy | Polymarket |
 
 ### Running Examples
 
@@ -463,6 +464,12 @@ EXCHANGE=polymarket PRIVATE_KEY=0x... npx tsx examples/spike-strategy.ts
 
 # Spike strategy with custom parameters
 npx tsx examples/spike-strategy.ts --spike-threshold 0.02 --profit-target 0.03 --stop-loss 0.02
+
+# Weather bot strategy - London temperature bucket mispricing
+npx tsx examples/weather-bot-strategy.ts --dry-run
+
+# Weather bot with live trading
+PRIVATE_KEY=0x... npx tsx examples/weather-bot-strategy.ts --order-size 5
 ```
 
 ## Requirements
