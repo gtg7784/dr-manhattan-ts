@@ -27,6 +27,16 @@ interface WeatherBotConfig {
   dryRun: boolean;
   /** Verbose logging (default: true) */
   verbose: boolean;
+  /** Use LLM for market classification (default: false) */
+  useLlm: boolean;
+  /** LLM model to use via OpenRouter (default: anthropic/claude-3-haiku) */
+  llmModel: string;
+}
+
+interface LlmClassification {
+  isTargetMarket: boolean;
+  confidence: number;
+  reasoning: string;
 }
 
 interface BucketOpportunity {
@@ -59,6 +69,97 @@ class WeatherBotStrategy {
   private temperaturePattern = /temperature.*London.*(-?\d+)°[CF]/i;
   private temperaturePatternAlt = /London.*temperature.*(-?\d+)°[CF]/i;
 
+  private llmCache: Map<string, LlmClassification> = new Map();
+
+  private llmApiKeyWarned = false;
+
+  private async classifyMarketWithLlm(question: string): Promise<LlmClassification> {
+    const cached = this.llmCache.get(question);
+    if (cached) {
+      this.log(`  ${Colors.dim('[LLM Cache Hit]')}`);
+      return cached;
+    }
+
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    if (!apiKey) {
+      if (!this.llmApiKeyWarned) {
+        this.log(`${Colors.yellow('WARNING:')} OPENROUTER_API_KEY not set. Falling back to regex.`);
+        this.llmApiKeyWarned = true;
+      }
+      return { isTargetMarket: false, confidence: 0, reasoning: 'No API key' };
+    }
+
+    const prompt = `Classify if this prediction market question is a London temperature bucket market.
+
+<definition>
+A temperature bucket market asks: "Will the temperature in London be [VALUE] on [DATE]?"
+- Location: London (UK) only
+- Metric: highest/lowest temperature
+- Format: specific value (e.g., "5°C") OR boundary (e.g., "3°C or below", "7°C or higher")
+- Timeframe: specific date
+</definition>
+
+<criteria>
+MATCH: London + specific temp value/boundary + specific date + highest/lowest
+REJECT: other cities, averages, ranges, comparisons, non-temperature, no specific date
+</criteria>
+
+<examples>
+"Will the highest temperature in London be 0°C on January 5?" → true (exact value, specific date)
+"Will the lowest temperature in London be -2°C or below on January 6?" → true (boundary, specific date)
+"Will London be warmer than Paris tomorrow?" → false (comparison, not bucket)
+"What will the average temperature in London be this week?" → false (average, not bucket)
+"Will the temperature in New York be 5°C on Monday?" → false (wrong city)
+</examples>
+
+<question>${question}</question>
+
+Respond ONLY with valid JSON:
+{"isTargetMarket":boolean,"confidence":0-1,"reasoning":"brief"}`;
+
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': 'https://github.com/gtg7784/dr-manhattan-ts',
+          'X-Title': 'Weather Bot Strategy',
+        },
+        body: JSON.stringify({
+          model: this.config.llmModel,
+          messages: [{ role: 'user', content: prompt }],
+          response_format: { type: 'json_object' },
+          temperature: 0,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        this.log(`${Colors.red('LLM API Error:')} ${response.status} - ${errorText}`);
+        return { isTargetMarket: false, confidence: 0, reasoning: `API Error: ${response.status}` };
+      }
+
+      const data = (await response.json()) as {
+        choices: Array<{ message: { content: string } }>;
+      };
+      const content = data.choices[0]?.message?.content ?? '{}';
+      const result = JSON.parse(content) as LlmClassification;
+
+      this.llmCache.set(question, result);
+
+      this.log(
+        `  ${Colors.dim('[LLM]')} ${result.isTargetMarket ? Colors.green('✓') : Colors.red('✗')} ` +
+          `(${(result.confidence * 100).toFixed(0)}%) ${Colors.dim(result.reasoning.slice(0, 50))}`
+      );
+
+      return result;
+    } catch (error) {
+      this.log(`${Colors.red('LLM Error:')} ${error}`);
+      return { isTargetMarket: false, confidence: 0, reasoning: `Error: ${error}` };
+    }
+  }
+
   constructor(exchange: Polymarket, config: Partial<WeatherBotConfig> = {}) {
     this.exchange = exchange;
     this.config = {
@@ -70,6 +171,8 @@ class WeatherBotStrategy {
       checkInterval: config.checkInterval ?? 30,
       dryRun: config.dryRun ?? false,
       verbose: config.verbose ?? true,
+      useLlm: config.useLlm ?? false,
+      llmModel: config.llmModel ?? 'anthropic/claude-3-haiku',
     };
   }
 
@@ -81,7 +184,8 @@ class WeatherBotStrategy {
   }
 
   async findLondonTemperatureMarkets(): Promise<Market[]> {
-    this.log('Searching for London temperature markets...');
+    const classificationMode = this.config.useLlm ? 'LLM' : 'REGEX';
+    this.log(`Searching for London temperature markets... (${Colors.cyan(classificationMode)})`);
 
     const temperatureMarkets: Market[] = [];
 
@@ -104,7 +208,8 @@ class WeatherBotStrategy {
       }
 
       for (const market of allMarkets.values()) {
-        if (this.isTemperatureMarket(market)) {
+        const isTarget = await this.isTemperatureMarketAsync(market);
+        if (isTarget) {
           temperatureMarkets.push(market);
           this.log(`  Found: ${Colors.cyan(market.question.slice(0, 70))}...`);
         }
@@ -117,6 +222,14 @@ class WeatherBotStrategy {
       `Found ${Colors.yellow(String(temperatureMarkets.length))} London temperature markets`
     );
     return temperatureMarkets;
+  }
+
+  private async isTemperatureMarketAsync(market: Market): Promise<boolean> {
+    if (this.config.useLlm) {
+      const result = await this.classifyMarketWithLlm(market.question);
+      return result.isTargetMarket && result.confidence > 0.7;
+    }
+    return this.isTemperatureMarket(market);
   }
 
   private isTemperatureMarket(market: Market): boolean {
@@ -342,6 +455,12 @@ class WeatherBotStrategy {
     } else {
       console.log(`  Mode: ${Colors.green('LIVE TRADING')}`);
     }
+
+    if (this.config.useLlm) {
+      console.log(`  Classification: ${Colors.cyan('LLM')} (${this.config.llmModel})`);
+    } else {
+      console.log(`  Classification: ${Colors.cyan('REGEX')}`);
+    }
     console.log(`${'='.repeat(60)}\n`);
   }
 
@@ -398,6 +517,13 @@ function parseArgs(): Partial<WeatherBotConfig> & { duration?: number } {
       case '--quiet':
         config.verbose = false;
         break;
+      case '--use-llm':
+        config.useLlm = true;
+        break;
+      case '--llm-model':
+        config.llmModel = next ?? 'anthropic/claude-3-haiku';
+        i++;
+        break;
       case '-h':
       case '--help':
         console.log(`
@@ -418,6 +544,8 @@ Options:
   --interval <n>           Check interval in seconds (default: 30)
   --duration <n>           Run duration in minutes (default: unlimited)
   --dry-run                Dry run mode - analyze without placing orders
+  --use-llm                Use LLM for market classification (requires OPENROUTER_API_KEY)
+  --llm-model <model>      OpenRouter model to use (default: anthropic/claude-3-haiku)
   -v, --verbose            Verbose logging (default)
   -q, --quiet              Quiet mode
   -h, --help               Show this help
@@ -425,11 +553,13 @@ Options:
 Environment Variables:
   PRIVATE_KEY              Your Polymarket private key (required for trading)
   POLYMARKET_FUNDER        Funder address (optional)
+  OPENROUTER_API_KEY       OpenRouter API key (required for --use-llm)
 
 Examples:
   npx tsx examples/weather-bot-strategy.ts --dry-run
   PRIVATE_KEY=0x... npx tsx examples/weather-bot-strategy.ts --order-size 5
   npx tsx examples/weather-bot-strategy.ts --target-price-min 0.20 --target-price-max 0.30
+  OPENROUTER_API_KEY=... npx tsx examples/weather-bot-strategy.ts --use-llm --dry-run
 `);
         process.exit(0);
     }
