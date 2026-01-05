@@ -749,9 +749,19 @@ function createExchangeWithConfig(exchangeId: string): ExchangeCreationResult {
   }
 }
 
-function parseArgs(): SpikeStrategyConfig & { exchangeId: string; marketId?: string } {
+function extractSlugFromUrl(url: string): string {
+  const cleaned = url.split('?')[0]?.replace(/\/$/, '') ?? '';
+  const parts = cleaned.split('/');
+  const eventIndex = parts.indexOf('event');
+  if (eventIndex !== -1 && eventIndex + 1 < parts.length) {
+    return parts[eventIndex + 1] ?? '';
+  }
+  return parts[parts.length - 1] ?? '';
+}
+
+function parseArgs(): SpikeStrategyConfig & { exchangeId: string; marketUrl?: string } {
   const args = process.argv.slice(2);
-  const config: SpikeStrategyConfig & { exchangeId: string; marketId?: string } = {
+  const config: SpikeStrategyConfig & { exchangeId: string; marketUrl?: string } = {
     exchangeId: process.env.EXCHANGE ?? 'polymarket',
   };
 
@@ -766,8 +776,8 @@ function parseArgs(): SpikeStrategyConfig & { exchangeId: string; marketId?: str
         i++;
         break;
       case '-m':
-      case '--market-id':
-        config.marketId = next;
+      case '--market-url':
+        config.marketUrl = next;
         i++;
         break;
       case '--spike-threshold':
@@ -815,7 +825,7 @@ Usage:
 
 Options:
   -e, --exchange <name>      Exchange name (default: polymarket)
-  -m, --market-id <id>       Market ID (auto-selects if not provided)
+  -m, --market-url <url>     Polymarket URL (auto-selects if not provided)
   --spike-threshold <n>      Spike detection threshold (default: 0.015 = 1.5%)
   --profit-target <n>        Take profit target (default: 0.03 = 3%)
   --stop-loss <n>            Stop loss limit (default: 0.02 = 2%)
@@ -874,9 +884,18 @@ async function main() {
 
   let market: Market | null = null;
 
-  if (config.marketId) {
-    console.log(`Using provided market ID: ${config.marketId}`);
-    market = await exchange.fetchMarket(config.marketId);
+  if (config.marketUrl) {
+    const slug = extractSlugFromUrl(config.marketUrl);
+    console.log(`Fetching market from URL: ${config.marketUrl}`);
+    console.log(`  Slug: ${slug}`);
+
+    if (exchange.id === 'polymarket') {
+      const polymarket = exchange as Polymarket;
+      const markets = await polymarket.fetchMarketsBySlug(slug);
+      market = markets[0] ?? null;
+    } else {
+      throw new Error('--market-url is only supported for Polymarket');
+    }
   } else {
     console.log('Finding a suitable market with liquidity...');
     const liquidityThresholds = [10000, 5000, 1000, 500, 100];
@@ -917,15 +936,15 @@ async function main() {
 
   if (!market) {
     console.error('No suitable market found with liquidity.');
-    console.error('Please specify a market ID with --market-id <id>');
-    console.error('You can find active markets at: https://polymarket.com/markets');
+    console.error('Please specify a market URL with --market-url <url>');
+    console.error('Example: --market-url https://polymarket.com/event/will-trump-win');
     process.exit(1);
   }
 
-  if (market.liquidity === 0 && !config.marketId) {
+  if (market.liquidity === 0 && !config.marketUrl) {
     console.warn('\nWARNING: Selected market has $0 liquidity!');
     console.warn('This means no orderbook data will be available.');
-    console.warn('Please use --market-id to specify an active market.\n');
+    console.warn('Please use --market-url to specify an active market.\n');
     process.exit(1);
   }
 
