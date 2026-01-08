@@ -30,8 +30,11 @@ interface OpinionConfig extends ExchangeConfig {
 }
 
 interface ApiResponse<T = unknown> {
-  code: number;
+  code?: number;
+  errno?: number;
   msg?: string;
+  errmsg?: string;
+  message?: string;
   result?: {
     total?: number;
     data?: T;
@@ -41,26 +44,38 @@ interface ApiResponse<T = unknown> {
 
 interface RawMarket {
   market_id?: number;
+  marketId?: number;
   topic_id?: number;
+  topicId?: number;
   id?: number;
   market_title?: string;
+  marketTitle?: string;
   title?: string;
   question?: string;
   yes_token_id?: string;
+  yesTokenId?: string;
   no_token_id?: string;
+  noTokenId?: string;
   yes_label?: string;
+  yesLabel?: string;
   no_label?: string;
+  noLabel?: string;
   volume?: string | number;
   liquidity?: number;
   cutoff_at?: number;
+  cutoffAt?: number;
   cutoff_time?: number;
-  status?: string;
+  status?: string | number;
+  statusEnum?: string;
   condition_id?: string;
+  conditionId?: string;
   child_markets?: RawMarket[];
+  childMarkets?: RawMarket[];
   description?: string;
   rules?: string;
   category?: string;
   image_url?: string;
+  imageUrl?: string;
 }
 
 interface RawOrder {
@@ -179,27 +194,29 @@ export class Opinion extends Exchange {
   }
 
   private parseMarket(data: RawMarket, _fetchPrices = false): Market {
-    const marketId = String(data.market_id ?? data.topic_id ?? data.id ?? '');
-    const question = data.market_title ?? data.title ?? data.question ?? '';
+    const marketId = String(
+      data.marketId ?? data.market_id ?? data.topicId ?? data.topic_id ?? data.id ?? ''
+    );
+    const question = data.marketTitle ?? data.market_title ?? data.title ?? data.question ?? '';
 
     let outcomes: string[] = [];
     const tokenIds: string[] = [];
     const prices: Record<string, number> = {};
 
-    const yesTokenId = String(data.yes_token_id ?? '');
-    const noTokenId = String(data.no_token_id ?? '');
-    const yesLabel = data.yes_label ?? 'Yes';
-    const noLabel = data.no_label ?? 'No';
+    const yesTokenId = String(data.yesTokenId ?? data.yes_token_id ?? '');
+    const noTokenId = String(data.noTokenId ?? data.no_token_id ?? '');
+    const yesLabel = data.yesLabel ?? data.yes_label ?? 'Yes';
+    const noLabel = data.noLabel ?? data.no_label ?? 'No';
 
-    const childMarkets = data.child_markets ?? [];
+    const childMarkets = data.childMarkets ?? data.child_markets ?? [];
 
     if (yesTokenId && noTokenId) {
       outcomes = [yesLabel, noLabel];
       tokenIds.push(yesTokenId, noTokenId);
     } else if (childMarkets.length > 0) {
       for (const child of childMarkets) {
-        const childTitle = child.market_title ?? '';
-        const childYesToken = String(child.yes_token_id ?? '');
+        const childTitle = child.marketTitle ?? child.market_title ?? '';
+        const childYesToken = String(child.yesTokenId ?? child.yes_token_id ?? '');
         if (childTitle && childYesToken) {
           outcomes.push(childTitle);
           tokenIds.push(childYesToken);
@@ -212,7 +229,7 @@ export class Opinion extends Exchange {
     }
 
     let closeTime: Date | undefined;
-    const cutoffTime = data.cutoff_at ?? data.cutoff_time;
+    const cutoffTime = data.cutoffAt ?? data.cutoff_at ?? data.cutoff_time;
     if (cutoffTime && typeof cutoffTime === 'number' && cutoffTime > 0) {
       closeTime = new Date(cutoffTime * 1000);
     }
@@ -222,20 +239,24 @@ export class Opinion extends Exchange {
     const liquidity = data.liquidity ?? 0;
     const tickSize = 0.001;
 
+    const statusValue = data.statusEnum ?? data.status;
+    const isResolved =
+      statusValue === 'RESOLVED' || statusValue === 'Resolved' || statusValue === 3;
+
     const metadata: Record<string, unknown> = {
       topic_id: marketId,
       market_id: marketId,
-      condition_id: data.condition_id ?? '',
-      status: data.status ?? '',
+      condition_id: data.conditionId ?? data.condition_id ?? '',
+      status: statusValue ?? '',
       chain_id: this.chainId,
       clobTokenIds: tokenIds,
       token_ids: tokenIds,
       tokens: Object.fromEntries(outcomes.map((o, i) => [o, tokenIds[i] ?? ''])),
       description: data.description ?? data.rules ?? '',
       category: data.category ?? '',
-      image_url: data.image_url ?? '',
+      image_url: data.imageUrl ?? data.image_url ?? '',
       minimum_tick_size: tickSize,
-      closed: data.status === 'RESOLVED',
+      closed: isResolved,
     };
 
     return {
@@ -327,6 +348,12 @@ export class Opinion extends Exchange {
   }
 
   async fetchMarkets(params?: FetchMarketsParams): Promise<Market[]> {
+    if (!this.apiKey) {
+      throw new AuthenticationError(
+        'Opinion API requires an API key for all requests. Please provide apiKey in config.'
+      );
+    }
+
     return this.withRetry(async () => {
       const queryParams: Record<string, unknown> = {
         marketType: MARKET_TYPE_ALL,
@@ -337,8 +364,16 @@ export class Opinion extends Exchange {
 
       const response = await this.request<RawMarket>('GET', '/openapi/market', queryParams);
 
-      if (response.code !== 0) {
-        throw new ExchangeError(`Failed to fetch markets: ${response.msg}`);
+      if (response.message?.includes('No API key') || response.message === 'Unauthorized') {
+        throw new AuthenticationError(
+          `Opinion API authentication failed: ${response.message}. Check your API key.`
+        );
+      }
+
+      const errorCode = response.errno ?? response.code;
+      if (errorCode !== 0) {
+        const errorMsg = response.errmsg ?? response.msg ?? response.message ?? 'Unknown error';
+        throw new ExchangeError(`Failed to fetch markets: ${errorMsg}`);
       }
 
       const marketsList = response.result?.list ?? [];
