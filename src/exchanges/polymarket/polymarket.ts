@@ -1,5 +1,7 @@
 import { AssetType, ClobClient, Side } from '@polymarket/clob-client';
-import { Wallet } from 'ethers';
+import { createWalletClient, http, type WalletClient } from 'viem';
+import { privateKeyToAccount } from 'viem/accounts';
+import { polygon, polygonAmoy } from 'viem/chains';
 import { Exchange, type ExchangeConfig } from '../../core/exchange.js';
 import {
   AuthenticationError,
@@ -38,7 +40,7 @@ export class Polymarket extends Exchange {
   readonly name = 'Polymarket';
 
   private clobClient: ClobClient | null = null;
-  private wallet: Wallet | null = null;
+  private walletClient: WalletClient | null = null;
   private address: string | null = null;
   private clobClientAuthenticated = false;
   private authConfig: { chainId: number; signatureType: number; funder?: string } | null = null;
@@ -64,25 +66,27 @@ export class Polymarket extends Exchange {
       if (!config.privateKey) {
         return;
       }
-      this.wallet = new Wallet(config.privateKey);
+      const account = privateKeyToAccount(config.privateKey as `0x${string}`);
+      const chain = chainId === 80002 ? polygonAmoy : polygon;
+      this.walletClient = createWalletClient({ account, chain, transport: http() });
       this.clobClient = new ClobClient(
         CLOB_URL,
         chainId,
-        this.wallet,
+        this.walletClient,
         undefined,
         signatureType,
         config.funder
       );
 
       this.authConfig = { chainId, signatureType, funder: config.funder };
-      this.address = this.wallet.address;
+      this.address = account.address;
     } catch (error) {
       throw new AuthenticationError(`Failed to initialize CLOB client: ${error}`);
     }
   }
 
   private async ensureAuthenticated(): Promise<ClobClient> {
-    if (!this.clobClient || !this.wallet || !this.authConfig) {
+    if (!this.clobClient || !this.walletClient || !this.authConfig) {
       throw new AuthenticationError('CLOB client not initialized. Private key required.');
     }
 
@@ -99,7 +103,7 @@ export class Polymarket extends Exchange {
     this.clobClient = new ClobClient(
       CLOB_URL,
       this.authConfig.chainId,
-      this.wallet,
+      this.walletClient,
       creds,
       this.authConfig.signatureType,
       this.authConfig.funder
